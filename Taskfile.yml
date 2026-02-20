@@ -1,0 +1,73 @@
+# https://taskfile.dev
+version: '3'
+
+vars:
+  VERSION:    { sh: $(git describe --tags --long 2>/dev/null) || echo "no-version-yet" }
+  BUILD_DATE: { sh: date -u +'%Y-%m-%dT%H:%M:%SZ' }
+
+tasks:
+  install:
+    desc: "install local remapjson binary"
+    vars:
+      GOPATH: { sh: go env GOPATH }
+      GOOS:   { sh: go env GOOS }
+      GOARCH: { sh: go env GOARCH }
+    cmds:
+      - {task: 'build:{{.GOARCH}}-{{.GOOS}}' }
+      - cp ./bin/remapjson-{{.GOOS}}-{{.GOARCH}} {{.GOPATH}}/bin/remapjson
+
+  build:
+    desc: "build binaries for all platforms including amd64-darwin"
+    cmds: [ { task: build:clear }, { task: build:all } ]
+
+  build:all:
+    internal: true
+    desc: "build binaries for all platforms"
+    deps:
+      - build:amd64-linux
+      - build:arm64-darwin
+      - build:amd64-darwin
+      - build:amd64-windows
+
+  build:amd64-windows:
+    desc: "build for amd64-windows"
+    deps: [{ task: build:nospec, vars: { GOARCH: amd64, GOOS: windows } }]
+
+  build:amd64-linux:
+    desc: "build for amd64-linux"
+    deps: [{ task: build:nospec, vars: { GOARCH: amd64, GOOS: linux } }]
+
+  build:arm64-darwin:
+    desc: "build for M1 darwin"
+    deps: [{ task: build:nospec, vars: { GOARCH: arm64, GOOS: darwin } }]
+
+  build:amd64-darwin:
+    desc: "build for amd64-darwin"
+    deps: [{ task: build:nospec, vars: { GOARCH: amd64, GOOS: darwin } }]
+
+  build:nospec:
+    desc: "build without spec, for internal use"
+    internal: true
+    silent: false
+    cmds:
+      - {silent: true, cmd: 'mkdir -p ./bin'}
+      - |
+        GOOS={{.GOOS}} GOARCH={{.GOARCH}} go build \
+        -o ./bin/remapjson-{{.GOOS}}-{{.GOARCH}} \
+        {{.FLAGS}} \
+        -ldflags "-X 'main.version={{.VERSION}}-local' -X 'main.buildDate={{.BUILD_DATE}}' -s -w" \
+        main.go
+
+  build:clear:
+    desc: "clear build artifacts"
+    cmd: rm -rf ./bin
+
+  build:docker:
+    desc: "build docker image with local binary"
+    cmd: docker build -t remapjson:local .
+
+  run:
+    desc: "run app with .env, pass additional args through double-dash --"
+    dotenv: [.env]
+    cmd: |
+      go run -ldflags "-X 'main.version=local' -X 'main.buildDate={{.BUILD_DATE}}' -s -w" main.go {{.CLI_ARGS}}

@@ -1,0 +1,246 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>remapjson</title>
+  <script src="https://unpkg.com/htmx.org@2.0.4/dist/htmx.min.js"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: system-ui, -apple-system, sans-serif;
+      background: #f3f4f6;
+      color: #111827;
+      padding: 2rem;
+      min-height: 100vh;
+    }
+
+    header { max-width: 1100px; margin: 0 auto 1.5rem; }
+    header h1 { font-size: 1.4rem; font-weight: 700; }
+    header p  { color: #6b7280; font-size: 0.875rem; margin-top: 0.25rem; }
+
+    .layout {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1.5rem;
+      max-width: 1100px;
+      margin: 0 auto;
+    }
+    @media (max-width: 720px) { .layout { grid-template-columns: 1fr; } }
+
+    .card {
+      background: #fff;
+      border-radius: 8px;
+      padding: 1.5rem;
+      box-shadow: 0 1px 3px rgba(0,0,0,.08);
+    }
+    .card h2 {
+      font-size: 0.9rem;
+      font-weight: 600;
+      color: #374151;
+      padding-bottom: 0.75rem;
+      border-bottom: 1px solid #e5e7eb;
+      margin-bottom: 1.1rem;
+    }
+
+    .field { margin-bottom: 1rem; }
+    .field label {
+      display: block;
+      font-size: 0.75rem;
+      font-weight: 600;
+      color: #6b7280;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      margin-bottom: 0.35rem;
+    }
+    .field input[type=url],
+    .field textarea {
+      width: 100%;
+      padding: 0.5rem 0.75rem;
+      border: 1px solid #d1d5db;
+      border-radius: 6px;
+      font-size: 0.875rem;
+      font-family: 'Menlo', 'Consolas', monospace;
+      color: #111827;
+      background: #fff;
+      outline: none;
+      transition: border-color .15s, box-shadow .15s;
+    }
+    .field input[type=url]:focus,
+    .field textarea:focus {
+      border-color: #6366f1;
+      box-shadow: 0 0 0 3px rgba(99,102,241,.12);
+    }
+    .field textarea { min-height: 130px; resize: vertical; }
+
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.35rem;
+      background: #6366f1;
+      color: #fff;
+      border: none;
+      padding: 0.55rem 1.2rem;
+      border-radius: 6px;
+      font-size: 0.875rem;
+      font-weight: 500;
+      cursor: pointer;
+      transition: background .15s;
+    }
+    .btn:hover  { background: #4f46e5; }
+    .btn:active { background: #4338ca; }
+
+    .section-label {
+      font-size: 0.75rem;
+      font-weight: 600;
+      color: #6b7280;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      margin-bottom: 0.4rem;
+    }
+
+    .preview-box {
+      background: #f9fafb;
+      border: 1px solid #e5e7eb;
+      border-radius: 6px;
+      padding: 0.75rem 1rem;
+      min-height: 90px;
+      font-family: 'Menlo', 'Consolas', monospace;
+      font-size: 0.875rem;
+    }
+    .preview-box pre { white-space: pre-wrap; word-break: break-all; }
+    .preview-box .error { color: #dc2626; }
+
+    .divider { border: none; border-top: 1px solid #e5e7eb; margin: 1.25rem 0; }
+
+    #webhook-result {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 0.5rem;
+      min-height: 2.2rem;
+    }
+    #webhook-result input[type=text] {
+      flex: 1;
+      min-width: 0;
+      font-family: 'Menlo', 'Consolas', monospace;
+      font-size: 0.8rem;
+      padding: 0.45rem 0.75rem;
+      border: 1px solid #bfdbfe;
+      border-radius: 6px;
+      background: #eff6ff;
+      color: #1d4ed8;
+      outline: none;
+    }
+    .btn-copy {
+      background: #e5e7eb;
+      color: #374151;
+      border: none;
+      padding: 0.45rem 0.75rem;
+      border-radius: 6px;
+      font-size: 0.8rem;
+      cursor: pointer;
+      white-space: nowrap;
+    }
+    .btn-copy:hover { background: #d1d5db; }
+
+    .full-width {
+      max-width: 1100px;
+      margin: 1.5rem auto 0;
+    }
+    #unseal-result .section-label { margin-top: 0.75rem; }
+    #unseal-result .section-label:first-child { margin-top: 0; }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>remapjson</h1>
+    <p>Compose a webhook URL that remaps incoming JSON with a Go template before forwarding it.</p>
+  </header>
+
+  <div class="layout">
+
+    <!-- ── Left: inputs ─────────────────────────────── -->
+    <div class="card">
+      <h2>Configuration</h2>
+      <form id="cfg"
+            hx-post="/configure"
+            hx-include="#cfg"
+            hx-target="#webhook-result">
+
+        <div class="field">
+          <label for="url">Target URL</label>
+          <input type="url" id="url" name="url"
+                 placeholder="https://example.com/webhook" required>
+        </div>
+
+        <div class="field">
+          <label for="template">Template</label>
+          <textarea id="template" name="template"
+                    hx-post="/render"
+                    hx-trigger="input delay:400ms, change"
+                    hx-include="#cfg"
+                    hx-target="#preview">{"message": "{{.text}}"}</textarea>
+        </div>
+
+        <div class="field">
+          <label for="data">Example Data</label>
+          <textarea id="data" name="data"
+                    hx-post="/render"
+                    hx-trigger="input delay:400ms, change"
+                    hx-include="#cfg"
+                    hx-target="#preview">{"text": "hello, world!"}</textarea>
+        </div>
+
+        <button type="submit" class="btn">Generate Webhook URL</button>
+      </form>
+    </div>
+
+    <!-- ── Right: outputs ───────────────────────────── -->
+    <div class="card">
+      <h2>Preview</h2>
+
+      <div class="section-label">Rendered output</div>
+      <div class="preview-box" id="preview"
+           hx-post="/render"
+           hx-trigger="load"
+           hx-include="#cfg"></div>
+
+      <hr class="divider">
+
+      <div class="section-label">Webhook URL</div>
+      <div id="webhook-result"></div>
+    </div>
+
+  </div>
+
+  <!-- ── Debug: unseal ───────────────────────────────── -->
+  <div class="full-width">
+    <div class="card">
+      <h2>Debug — Unseal Token</h2>
+      <div class="field">
+        <label for="token">Webhook URL or token</label>
+        <input type="text" id="token" name="token"
+               placeholder="https://example.com/wh/… or paste the raw token"
+               style="width:100%;padding:.5rem .75rem;border:1px solid #d1d5db;border-radius:6px;font-size:.875rem;font-family:'Menlo','Consolas',monospace;outline:none;transition:border-color .15s,box-shadow .15s"
+               hx-post="/unseal"
+               hx-trigger="input delay:400ms, change"
+               hx-include="#token"
+               hx-target="#unseal-result">
+      </div>
+      <div id="unseal-result" class="preview-box" style="min-height:4rem"></div>
+    </div>
+  </div>
+
+  <script>
+    // Show a brief error message in #webhook-result when /configure returns 4xx/5xx.
+    document.addEventListener('htmx:responseError', function (e) {
+      if (e.detail.target && e.detail.target.id === 'webhook-result') {
+        e.detail.target.innerHTML =
+          '<span style="color:#dc2626;font-size:.85rem">Request failed — check URL and template.</span>';
+      }
+    });
+  </script>
+</body>
+</html>
