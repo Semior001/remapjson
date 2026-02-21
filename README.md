@@ -1,6 +1,6 @@
 # remapjson
 
-[![build](https://github.com/Semior001/remapjson/actions/workflows/.go.yaml/badge.svg)](https://github.com/Semior001/remapjson/actions/workflows/.go.yaml)&nbsp;[![Go Report Card](https://goreportcard.com/badge/github.com/Semior001/remapjson)](https://goreportcard.com/report/github.com/Semior001/remapjson)&nbsp;[![GitHub release](https://img.shields.io/github/release/Semior001/remapjson.svg)](https://github.com/Semior001/remapjson/releases)
+[![build](https://github.com/Semior001/remapjson/actions/workflows/.go.yaml/badge.svg)](https://github.com/Semior001/remapjson/actions/workflows/.go.yaml)&nbsp;[![Go Report Card](https://goreportcard.com/badge/github.com/Semior001/remapjson)](https://goreportcard.com/report/github.com/Semior001/remapjson)&nbsp;[![GitHub release](https://img.shields.io/github/release/Semior001/remapjson.svg)](https://github.com/Semior001/remapjson/releases)&nbsp;[![codecov](https://codecov.io/github/Semior001/remapjson/graph/badge.svg?token=FLBCCPHUD0)](https://codecov.io/github/Semior001/remapjson)
 
 remapjson is a stateless webhook adapter. It sits in front of any HTTP endpoint and transforms incoming JSON payloads using Go templates before forwarding the request. The transformation rule (target URL + template) is sealed with AES-GCM and encoded into the webhook URL itself — so there is no database, no configuration files, and no state to keep in sync.
 
