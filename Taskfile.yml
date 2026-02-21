@@ -17,35 +17,38 @@ tasks:
       - cp ./bin/remapjson-{{.GOOS}}-{{.GOARCH}} {{.GOPATH}}/bin/remapjson
 
   build:
-    desc: "build binaries for all platforms including amd64-darwin"
-    cmds: [ { task: build:clear }, { task: build:all } ]
+    desc: "build everything"
+    cmds:
+    - task: build:clear
+    - task: build:bin:all
+    - task: build:docker
 
-  build:all:
+  build:bin:all:
     internal: true
     desc: "build binaries for all platforms"
     deps:
-      - build:amd64-linux
-      - build:arm64-darwin
-      - build:amd64-darwin
-      - build:amd64-windows
+      - build:bin:amd64-linux
+      - build:bin:arm64-darwin
+      - build:bin:amd64-darwin
+      - build:bin:amd64-windows
 
-  build:amd64-windows:
+  build:bin:amd64-windows:
     desc: "build for amd64-windows"
-    deps: [{ task: build:nospec, vars: { GOARCH: amd64, GOOS: windows } }]
+    deps: [{ task: build:bin:nospec, vars: { GOARCH: amd64, GOOS: windows } }]
 
-  build:amd64-linux:
+  build:bin:amd64-linux:
     desc: "build for amd64-linux"
-    deps: [{ task: build:nospec, vars: { GOARCH: amd64, GOOS: linux } }]
+    deps: [{ task: build:bin:nospec, vars: { GOARCH: amd64, GOOS: linux } }]
 
-  build:arm64-darwin:
+  build:bin:arm64-darwin:
     desc: "build for M1 darwin"
-    deps: [{ task: build:nospec, vars: { GOARCH: arm64, GOOS: darwin } }]
+    deps: [{ task: build:bin:nospec, vars: { GOARCH: arm64, GOOS: darwin } }]
 
-  build:amd64-darwin:
+  build:bin:amd64-darwin:
     desc: "build for amd64-darwin"
-    deps: [{ task: build:nospec, vars: { GOARCH: amd64, GOOS: darwin } }]
+    deps: [{ task: build:bin:nospec, vars: { GOARCH: amd64, GOOS: darwin } }]
 
-  build:nospec:
+  build:bin:nospec:
     desc: "build without spec, for internal use"
     internal: true
     silent: false
@@ -65,6 +68,18 @@ tasks:
   build:docker:
     desc: "build docker image with local binary"
     cmd: docker build -t remapjson:local .
+
+  check:
+    desc: "run all checks"
+    deps: [lint, test]
+
+  lint:
+    desc: "run linters"
+    cmd: golangci-lint run --timeout 5m
+
+  test:
+    desc: "run tests"
+    cmd: go test -timeout=60s ./...
 
   run:
     desc: "run app with .env, pass additional args through double-dash --"
