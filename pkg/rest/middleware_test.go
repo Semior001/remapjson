@@ -16,7 +16,7 @@ func TestRecoverer(t *testing.T) {
 		}))
 
 		rec := httptest.NewRecorder()
-		handler.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/", nil))
+		handler.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/", http.NoBody))
 
 		assert.Equal(t, http.StatusOK, rec.Code)
 	})
@@ -27,7 +27,7 @@ func TestRecoverer(t *testing.T) {
 		}))
 
 		rec := httptest.NewRecorder()
-		require.NotPanics(t, func() { handler.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/", nil)) })
+		require.NotPanics(t, func() { handler.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/", http.NoBody)) })
 		assert.Equal(t, http.StatusInternalServerError, rec.Code)
 	})
 
@@ -37,7 +37,7 @@ func TestRecoverer(t *testing.T) {
 		}))
 
 		rec := httptest.NewRecorder()
-		require.NotPanics(t, func() { handler.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/", nil)) })
+		require.NotPanics(t, func() { handler.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/", http.NoBody)) })
 		assert.Equal(t, http.StatusInternalServerError, rec.Code)
 	})
 }
@@ -49,7 +49,7 @@ func TestAssignRequestID(t *testing.T) {
 			capturedID = r.Header.Get("X-Request-ID")
 		}))
 
-		handler.ServeHTTP(httptest.NewRecorder(), httptest.NewRequest(http.MethodGet, "/", nil))
+		handler.ServeHTTP(httptest.NewRecorder(), httptest.NewRequest(http.MethodGet, "/", http.NoBody))
 		assert.NotEmpty(t, capturedID)
 	})
 
@@ -60,7 +60,7 @@ func TestAssignRequestID(t *testing.T) {
 			capturedID = r.Header.Get("X-Request-ID")
 		}))
 
-		req := httptest.NewRequest(http.MethodGet, "/", nil)
+		req := httptest.NewRequest(http.MethodGet, "/", http.NoBody)
 		req.Header.Set("X-Request-ID", existingID)
 		handler.ServeHTTP(httptest.NewRecorder(), req)
 
@@ -74,7 +74,7 @@ func TestAssignRequestID(t *testing.T) {
 			handler := AssignRequestID(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 				id = r.Header.Get("X-Request-ID")
 			}))
-			handler.ServeHTTP(httptest.NewRecorder(), httptest.NewRequest(http.MethodGet, "/", nil))
+			handler.ServeHTTP(httptest.NewRecorder(), httptest.NewRequest(http.MethodGet, "/", http.NoBody))
 			assert.False(t, seen[id], "duplicate request ID: %s", id)
 			seen[id] = true
 		}

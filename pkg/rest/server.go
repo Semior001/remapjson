@@ -3,7 +3,7 @@ package rest
 import (
 	"bytes"
 	"context"
-	"crypto/sha1"
+	"crypto/sha256"
 	"embed"
 	"encoding/json"
 	"errors"
@@ -42,7 +42,7 @@ type Server struct {
 	Addr     string
 	BaseURL  string // must be without trailing slash, e.g. http://localhost:8080
 	Version  string
-	Password string
+	Password string //nolint:gosec // intentional secret field
 
 	Client *http.Client
 	Debug  bool
@@ -108,7 +108,7 @@ func (s *Server) routes(staticFS fs.FS) http.Handler {
 		R.Throttle(1000),
 		R.AppInfo("remapjson", "semior", s.Version),
 		R.Ping,
-		R.SizeLimit(1*1024*1024),                                // 1MB max body size
+		R.SizeLimit(1*1024*1024), // 1MB max body size
 		tollbooth.HTTPMiddleware(tollbooth.NewLimiter(10, nil)), // 10 req/s global rate limit
 		R.Maybe(logger.HTTPServerMiddleware, func(*http.Request) bool { return s.Debug }),
 	)
@@ -117,7 +117,7 @@ func (s *Server) routes(staticFS fs.FS) http.Handler {
 
 	rtr.Group().Route(func(webapi *routegroup.Bundle) {
 		webapi.Use(
-			R.Maybe(R.BasicAuthWithPrompt("remapjson", s.Password), func(r *http.Request) bool { return s.Password != "" }),
+			R.Maybe(R.BasicAuthWithPrompt("remapjson", s.Password), func(_ *http.Request) bool { return s.Password != "" }),
 			logger.HTTPServerMiddleware,
 		)
 
@@ -164,6 +164,7 @@ func (s *Server) handleConfigure(w http.ResponseWriter, r *http.Request) {
 	if r.Header.Get("HX-Request") == "true" {
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
 		escaped := html.EscapeString(webhookURL)
+		//nolint:gosec // webhookURL is escaped with html.EscapeString above
 		fmt.Fprintf(w, `<input type="text" readonly value="%s">`+
 			`<button class="btn-copy" onclick="navigator.clipboard.writeText(this.previousElementSibling.value)">Copy</button>`,
 			escaped)
@@ -186,6 +187,7 @@ func (s *Server) handleConfigure(w http.ResponseWriter, r *http.Request) {
 // Accepts application/x-www-form-urlencoded with fields: template, data.
 func (s *Server) handleRender(w http.ResponseWriter, r *http.Request) {
 	if err := r.ParseForm(); err != nil {
+		//nolint:gosec // error message is escaped with html.EscapeString
 		fmt.Fprintf(w, `<span class="error">invalid form: %s</span>`, html.EscapeString(err.Error()))
 		return
 	}
@@ -200,6 +202,7 @@ func (s *Server) handleRender(w http.ResponseWriter, r *http.Request) {
 	var data map[string]any
 	if dataStr != "" {
 		if err := json.Unmarshal([]byte(dataStr), &data); err != nil {
+			//nolint:gosec // error message is escaped with html.EscapeString
 			fmt.Fprintf(w, `<span class="error">example data: %s</span>`, html.EscapeString(err.Error()))
 			return
 		}
@@ -207,17 +210,20 @@ func (s *Server) handleRender(w http.ResponseWriter, r *http.Request) {
 
 	tmpl, err := template.New("").Parse(tmplStr)
 	if err != nil {
+		//nolint:gosec // error message is escaped with html.EscapeString
 		fmt.Fprintf(w, `<span class="error">template: %s</span>`, html.EscapeString(err.Error()))
 		return
 	}
 
 	buf := &bytes.Buffer{}
 	if err = tmpl.Execute(buf, data); err != nil {
+		//nolint:gosec // error message is escaped with html.EscapeString
 		fmt.Fprintf(w, `<span class="error">render: %s</span>`, html.EscapeString(err.Error()))
 		return
 	}
 
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	//nolint:gosec // buf content is escaped with html.EscapeString
 	fmt.Fprintf(w, `<pre>%s</pre>`, html.EscapeString(buf.String()))
 }
 
@@ -225,6 +231,7 @@ func (s *Server) handleRender(w http.ResponseWriter, r *http.Request) {
 // Accepts application/x-www-form-urlencoded with field: token.
 func (s *Server) handleUnseal(w http.ResponseWriter, r *http.Request) {
 	if err := r.ParseForm(); err != nil {
+		//nolint:gosec // error message is escaped with html.EscapeString
 		fmt.Fprintf(w, `<span class="error">invalid form: %s</span>`, html.EscapeString(err.Error()))
 		return
 	}
@@ -242,11 +249,13 @@ func (s *Server) handleUnseal(w http.ResponseWriter, r *http.Request) {
 
 	urlStr, tmplStr, err := s.Sealer.Unseal(token)
 	if err != nil {
+		//nolint:gosec // error message is escaped with html.EscapeString
 		fmt.Fprintf(w, `<span class="error">%s</span>`, html.EscapeString(err.Error()))
 		return
 	}
 
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	//nolint:gosec // urlStr and tmplStr are escaped with html.EscapeString
 	fmt.Fprintf(w,
 		`<div class="field"><div class="section-label">Target URL</div>`+
 			`<div class="preview-box"><pre>%s</pre></div></div>`+
@@ -267,6 +276,7 @@ func (s *Server) handleWebhook(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	//nolint:gosec // remoteURL and rawTmpl come from operator-sealed token, log injection is accepted
 	slog.Info("handling request",
 		slog.String("remote_url", remoteURL),
 		slog.String("template", rawTmpl))
@@ -303,6 +313,7 @@ func (s *Server) handleWebhook(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	//nolint:gosec // remoteURL comes from operator-sealed token, SSRF is accepted by design
 	resp, err := s.Client.Do(req)
 	if err != nil {
 		s.error(w, r, http.StatusInternalServerError, "failed to send request: %v", err)
@@ -317,8 +328,8 @@ func (s *Server) handleWebhook(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func (s *Server) template(url string, tstr string) (*template.Template, error) {
-	h := sha1.New()
+func (s *Server) template(url, tstr string) (*template.Template, error) {
+	h := sha256.New()
 	_, _ = h.Write([]byte(url))
 	_, _ = h.Write([]byte(tstr))
 	key := fmt.Sprintf("%x", h.Sum(nil))

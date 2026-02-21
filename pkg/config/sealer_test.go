@@ -18,7 +18,7 @@ func TestSealer(t *testing.T) {
 		urlStr, tmplStr, err := s.Unseal(token)
 		require.NoError(t, err)
 		assert.Equal(t, "https://example.com/webhook", urlStr)
-		assert.Equal(t, `{"msg":"{{.text}}"}`, tmplStr)
+		assert.JSONEq(t, `{"msg":"{{.text}}"}`, tmplStr)
 	})
 
 	t.Run("each seal produces a different token", func(t *testing.T) {
@@ -67,7 +67,7 @@ func TestSealer(t *testing.T) {
 				return 'B'
 			}
 			return 'A'
-		}, string(token[mid:mid+1])) + token[mid+1:]
+		}, token[mid:mid+1]) + token[mid+1:]
 		_, _, err = s.Unseal(tampered)
 		assert.Error(t, err)
 	})

@@ -12,7 +12,7 @@ import (
 
 // Sealer provides methods to seal and unseal webhook configurations.
 type Sealer struct {
-	Secret string
+	Secret string //nolint:gosec // intentional secret field
 }
 
 type sealedConfig struct {

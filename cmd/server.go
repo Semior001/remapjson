@@ -17,8 +17,8 @@ type Server struct {
 	Addr     string        `long:"addr"     env:"ADDR"     description:"address to listen on" default:":8080"`
 	Timeout  time.Duration `long:"timeout"  env:"TIMEOUT"  description:"HTTP client timeout"  default:"90s"`
 	BaseURL  string        `long:"base-url" env:"BASE_URL" description:"base URL for webhook" required:"true"`
-	Secret   string        `long:"secret"   env:"SECRET"   description:"secret for sealing webhook configurations" required:"true"`
-	Password string        `long:"password" env:"PASSWORD" description:"password for basic auth, if not set, basic auth is disabled"`
+	Secret   string        `long:"secret"   env:"SECRET"   description:"secret for sealing webhook configurations" required:"true"` //nolint:gosec // intentional secret field
+	Password string        `long:"password" env:"PASSWORD" description:"password for basic auth, if not set, basic auth is disabled"`   //nolint:gosec // intentional secret field
 
 	CommonOpts
 }

@@ -71,7 +71,7 @@ func TestHandleConfigure(t *testing.T) {
 	})
 }
 
-func webhookRequest(method, token string, body string) *http.Request {
+func webhookRequest(method, token, body string) *http.Request {
 	var bodyReader *strings.Reader
 	if body != "" {
 		bodyReader = strings.NewReader(body)
@@ -87,7 +87,7 @@ func TestHandle(t *testing.T) {
 	t.Run("invalid token returns 400", func(t *testing.T) {
 		s := &Server{BaseURL: "http://localhost:8080", Version: "test", Sealer: config.Sealer{Secret: "test-secret"}, Client: &http.Client{}}
 
-		req := httptest.NewRequest(http.MethodGet, "/wh/!!!notbase64!!!", nil)
+		req := httptest.NewRequest(http.MethodGet, "/wh/!!!notbase64!!!", http.NoBody)
 		req.SetPathValue("token", "!!!notbase64!!!")
 		rec := httptest.NewRecorder()
 		s.handleWebhook(rec, req)
@@ -129,7 +129,7 @@ func TestHandle(t *testing.T) {
 		var capturedBody string
 		remote := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			b, err := io.ReadAll(r.Body)
-			require.NoError(t, err)
+			assert.NoError(t, err)
 			capturedBody = string(b)
 			w.WriteHeader(http.StatusCreated)
 			_, _ = w.Write([]byte(`{"ok":true}`))
@@ -146,15 +146,15 @@ func TestHandle(t *testing.T) {
 		s.handleWebhook(rec, req)
 
 		assert.Equal(t, http.StatusCreated, rec.Code)
-		assert.Equal(t, `{"ok":true}`, rec.Body.String())
-		assert.Equal(t, `{"mapped":"hello"}`, capturedBody)
+		assert.JSONEq(t, `{"ok":true}`, rec.Body.String())
+		assert.JSONEq(t, `{"mapped":"hello"}`, capturedBody)
 	})
 
 	t.Run("empty body is forwarded with nil data", func(t *testing.T) {
 		var capturedBody string
 		remote := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			b, err := io.ReadAll(r.Body)
-			require.NoError(t, err)
+			assert.NoError(t, err)
 			capturedBody = string(b)
 			w.WriteHeader(http.StatusOK)
 		}))
